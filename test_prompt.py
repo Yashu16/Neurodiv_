@@ -24,11 +24,14 @@ load_dotenv()  # reads GEMINI_API_KEY from a .env file in this directory
 
 MODEL = "gemini-2.5-flash"
 
+OUTPUT_DIR = "output"
+
 SYSTEM_PROMPT = """You are an assistant that transforms abstract concepts into four parallel
 learning representations for a student. Given a concept, generate ONE JSON
 object with exactly these fields:
 
 {
+  "diagram_reasoning": "<one sentence: what is this concept's underlying structure - is it a repeating process, a ranked/nested structure, two or more things being weighed against each other, a sequence of events over time, or a one-directional chain of cause and effect?>",
   "diagram": {
     "type": "cycle | hierarchy | comparison | timeline | flow",
     "mermaid": "<valid Mermaid.js syntax for this diagram type>"
@@ -43,11 +46,25 @@ object with exactly these fields:
               explaining to a curious 12-year-old, 4-6 sentences, no jargon>"
 }
 
+How to choose the diagram type - check these in order and use the FIRST one that fits,
+not the first one that's easy:
+- "cycle": the concept repeats or returns to its starting point (e.g. seasons, cell division, water cycle)
+- "timeline": the concept is fundamentally about WHEN things happened relative to each other
+- "comparison": the concept centers on two or more things being weighed, contrasted, or in tension
+  (e.g. supply vs demand, action vs reaction, two competing forces or ideas)
+- "hierarchy": the concept has nested categories, rankings, or one thing made of sub-parts
+  (e.g. multiple causes feeding into one outcome, a taxonomy, an org structure)
+- "flow": ONLY use this if the concept is a straightforward one-directional chain with no
+  meaningful repetition, ranking, or comparison - this should be your last resort, not your default.
+
+Do not default to "flow" out of convenience. If a concept could arguably be "comparison" or
+"hierarchy" instead of "flow", choose the more specific one.
+
 Rules:
-- Pick the SINGLE diagram type that best fits this concept's structure.
-  Do not force a type that doesn't fit - if genuinely nothing fits well,
-  use "flow".
 - The Mermaid syntax must be valid and renderable.
+- Any node label containing parentheses, commas, colons, or other special
+  characters MUST be wrapped in double quotes, e.g. A["Interphase (Cell
+  Growth)"]. Never leave such labels unquoted.
 - Output ONLY the JSON object. No preamble, no markdown fences, no commentary."""
 
 TEST_CONCEPTS = [
@@ -94,6 +111,7 @@ def main():
         sys.exit(1)
 
     client = genai.Client(api_key=api_key)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     results = []
     diagram_types_seen = []
@@ -121,6 +139,7 @@ def main():
         diagram_type = parsed.get("diagram", {}).get("type", "MISSING")
         diagram_types_seen.append(diagram_type)
 
+        print(f"  Reasoning    : {parsed.get('diagram_reasoning', 'MISSING')}")
         print(f"  Diagram type : {diagram_type}")
         print(f"  Mermaid      : {parsed.get('diagram', {}).get('mermaid', 'MISSING')[:100]}...")
         print(f"  Story        : {parsed.get('story', 'MISSING')[:150]}...")
@@ -128,6 +147,13 @@ def main():
         print(f"  Script       : {parsed.get('script', 'MISSING')[:150]}...")
 
         results.append({"concept": concept, "parsed": parsed})
+
+        # Write out a clean, ready-to-paste .mmd file per concept
+        safe_name = concept.lower().replace(" ", "_").replace("'", "")
+        mermaid_code = parsed.get("diagram", {}).get("mermaid", "")
+        if mermaid_code:
+            with open(os.path.join(OUTPUT_DIR, f"diagram_{safe_name}.mmd"), "w") as f:
+                f.write(mermaid_code)
 
     # Summary — this is the part that tells you if the architecture holds up
     print(f"\n\n{'#' * 70}")
@@ -140,10 +166,12 @@ def main():
         print("  ⚠️  WARNING: same diagram type every time — model may not be discriminating.")
 
     # Save full results for closer inspection
-    with open("test_results.json", "w") as f:
+    results_path = os.path.join(OUTPUT_DIR, "test_results.json")
+    with open(results_path, "w") as f:
         json.dump(results, f, indent=2)
-    print("\nFull results saved to test_results.json")
-    print("Next: paste a few of the Mermaid snippets into https://mermaid.live to check they render.")
+    print(f"\nFull results saved to {results_path}")
+    print("Individual .mmd files saved per concept — open one, copy its contents,")
+    print("and paste directly into https://mermaid.live to see the rendered diagram.")
 
 
 if __name__ == "__main__":
