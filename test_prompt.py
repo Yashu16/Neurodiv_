@@ -74,6 +74,9 @@ TEST_CONCEPTS = [
     "Justice",
     "Mitosis",
     "Newton's third law of motion",
+    "The timeline of World War 2",
+    "The stages of the water cycle",
+    "The evolution of the cell phone from 1980 to today",
 ]
 
 
