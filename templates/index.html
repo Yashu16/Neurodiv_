@@ -53,7 +53,7 @@
     </div>
     <div id="script" class="tab-content">
       <p>{{ result.script }}</p>
-      <button onclick="speakScript()">🔊 Read aloud</button>
+      <button id="speak-btn" onclick="toggleSpeech()">🔊 Read aloud</button>
     </div>
   {% endif %}
 
@@ -64,10 +64,18 @@
       document.getElementById(id).classList.add('active');
       event.target.classList.add('active');
     }
-    function speakScript() {
+    function toggleSpeech() {
+      const btn = document.getElementById('speak-btn');
+      if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+        btn.textContent = '🔊 Read aloud';
+        return;
+      }
       const text = {{ result.script | tojson if result else '""' }};
       const utterance = new SpeechSynthesisUtterance(text);
+      utterance.onend = () => { btn.textContent = '🔊 Read aloud'; };
       speechSynthesis.speak(utterance);
+      btn.textContent = '⏹ Stop';
     }
   </script>
 </body>
