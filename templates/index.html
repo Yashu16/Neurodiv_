@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Concept Kaleidoscope</title>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; color: #222; }
+    h1 { font-size: 1.4rem; }
+    form { display: flex; gap: 8px; margin-bottom: 24px; }
+    input[type=text] { flex: 1; padding: 10px; font-size: 1rem; }
+    button { padding: 10px 16px; font-size: 1rem; cursor: pointer; }
+    .tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+    .tab-btn { padding: 8px 14px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; border-radius: 4px; }
+    .tab-btn.active { background: #333; color: white; }
+    .tab-content { display: none; border: 1px solid #ddd; padding: 16px; border-radius: 4px; }
+    .tab-content.active { display: block; }
+    .error { color: #b00020; }
+    .mermaid { background: #fafafa; padding: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Concept Kaleidoscope</h1>
+  <form method="POST">
+    <input type="text" name="concept" placeholder="e.g. photosynthesis, justice, supply and demand" value="{{ concept }}">
+    <button type="submit">Generate</button>
+  </form>
+
+  {% if error %}
+    <p class="error">Something went wrong: {{ error }}</p>
+  {% endif %}
+
+  {% if result %}
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('diagram')">Diagram</button>
+      <button class="tab-btn" onclick="showTab('story')">Story</button>
+      <button class="tab-btn" onclick="showTab('activity')">Activity</button>
+      <button class="tab-btn" onclick="showTab('script')">Script</button>
+    </div>
+
+    <div id="diagram" class="tab-content active">
+      <p><em>{{ result.diagram_reasoning }}</em></p>
+      <div class="mermaid">{{ result.diagram.mermaid }}</div>
+    </div>
+    <div id="story" class="tab-content">
+      <p>{{ result.story }}</p>
+    </div>
+    <div id="activity" class="tab-content">
+      <p>{{ result.activity }}</p>
+    </div>
+    <div id="script" class="tab-content">
+      <p>{{ result.script }}</p>
+      <button onclick="speakScript()">🔊 Read aloud</button>
+    </div>
+  {% endif %}
+
+  <script>
+    function showTab(id) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      event.target.classList.add('active');
+    }
+    function speakScript() {
+      const text = {{ result.script | tojson if result else '""' }};
+      const utterance = new SpeechSynthesisUtterance(text);
+      speechSynthesis.speak(utterance);
+    }
+  </script>
+</body>
+</html>
